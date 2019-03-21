@@ -1,7 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: train-autoscaling
+
+---
+
 kind: Service
 apiVersion: v1
 metadata:
   name: train-schedule-service
+  namespace: train-autoscaling
 spec:
   type: NodePort
   selector:
@@ -9,7 +17,7 @@ spec:
   ports:
   - protocol: TCP
     port: 8080
-    nodePort: 8080
+    nodePort: 30030
 
 ---
 
@@ -17,6 +25,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: train-schedule-deployment
+  namespace: train-autoscaling
   labels:
     app: train-schedule
 spec:
@@ -41,3 +50,26 @@ spec:
           initialDelaySeconds: 15
           timeoutSeconds: 1
           periodSeconds: 10
+        resources:
+          requests:
+            cpu: 200m
+
+---
+
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: train-schedule
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: train-schedule-deployment
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: 50
